@@ -59,10 +59,14 @@ const pauseOverlay = $('pauseOverlay'), statusEl = $('status');
 const chartEl = $('chart'), toolbarEl = $('toolbar'), ecgEl = $('ecg');
 const xrayBadge = $('xrayBadge');
 function setScreen(name){
-  startScreen.classList.toggle('active', name==='MENU');
-  hud.classList.toggle('active', name==='PLAYING');
-  endScreen.classList.toggle('active', name==='WON' || name==='LOST');
-  pauseOverlay.classList.toggle('active', name==='PAUSED');
+  const show = (el, cond)=>{
+    if(cond){ el.classList.remove('hidden'); el.classList.add('active'); }
+    else { el.classList.add('hidden'); el.classList.remove('active'); }
+  };
+  show(startScreen, name==='MENU');
+  show(hud, name==='PLAYING');
+  show(endScreen, name==='WON' || name==='LOST');
+  show(pauseOverlay, name==='PAUSED');
 }
 function canvasToWorld(px, py){ return { x: (px - cx - camera.x)/camera.zoom + cx, y: (py - cy - camera.y)/camera.zoom + cy }; }
 function clampCamera(){ const p=200; camera.x = Math.max(-p,Math.min(p,camera.x)); camera.y = Math.max(-p,Math.min(p,camera.y)); }
@@ -128,7 +132,7 @@ function updateToolbar(){
 const WOUND_POS = [
   {x:-0.35,y:-0.28},{x:0.35,y:-0.28},{x:-0.55,y:0.05},{x:0.55,y:0.05},
   {x:-0.3,y:0.5},{x:0.3,y:0.5},{x:-0.7,y:-0.05},{x:0.7,y:-0.05},
-  {x:-0.35,y:0.95},{x:0.35,y:0.95},{x:0,y:-0.5},{x:0,0.75},
+  {x:-0.35,y:0.95},{x:0.35,y:0.95},{x:0,y:-0.5},{x:0,y:0.75},
 ];
 function newPatient(){
   VITALS.hr=80; VITALS.bpSys=120; VITALS.bpDia=80; VITALS.o2=98; VITALS.blood=100; VITALS.conscious=true;
@@ -475,6 +479,7 @@ requestAnimationFrame(loop);
 $('startBtn').onclick = ()=>{
   const simple = document.querySelector('input[name="mode"][value="simple"]');
   mode = simple.checked ? 'simple' : 'complex';
+  resize();
   newPatient();
   state = 'PLAYING';
   last = performance.now();
@@ -489,6 +494,95 @@ $('backBtn').onclick = ()=>{ if(confirm('Leave this case? Progress will be lost.
 $('retryBtn').onclick = ()=>{ newPatient(); state='PLAYING'; last=performance.now(); setScreen('PLAYING'); selectToolById('bandage'); requestAnimationFrame(loop); };
 $('portalBtn').onclick = ()=>{ state='MENU'; setScreen('MENU'); location.href = '../index.html'; };
 
+// ------------------------------------------------------------------ input (mouse / touch / keyboard)
+function getMousePos(e){
+  const r = canvas.getBoundingClientRect();
+  const sx = canvas.width / Math.max(r.width,1);
+  const sy = canvas.height / Math.max(r.height,1);
+  return { x: (e.clientX - r.left)*sx, y: (e.clientY - r.top)*sy };
+}
+canvas.addEventListener('mousemove', e=>{
+  const p = getMousePos(e);
+  mouse.x = p.x; mouse.y = p.y;
+  const w = canvasToWorld(mouse.x, mouse.y);
+  mouse.wx = w.x; mouse.wy = w.y;
+  if(drag.active){
+    camera.x = drag.cx + (drag.sx - mouse.x)/camera.zoom;
+    camera.y = drag.cy + (drag.sy - mouse.y)/camera.zoom;
+    clampCamera();
+  }
+});
+canvas.addEventListener('mousedown', e=>{
+  const p = getMousePos(e);
+  mouse.x = p.x; mouse.y = p.y;
+  const w = canvasToWorld(mouse.x, mouse.y);
+  mouse.wx = w.x; mouse.wy = w.y;
+  drag.active = true; drag.sx = mouse.x; drag.sy = mouse.y;
+  drag.cx = camera.x; drag.cy = camera.y;
+  mouse.down = true;
+});
+window.addEventListener('mouseup', ()=>{ drag.active = false; mouse.down = false; });
+canvas.addEventListener('mouseleave', ()=>{ drag.active = false; mouse.down = false; });
+canvas.addEventListener('click', e=>{
+  if(drag.active){ drag.active = false; return; }
+  if(state!=='PLAYING') return;
+  const w = canvasToWorld(mouse.x, mouse.y);
+  useToolAt(w.x, w.y);
+});
+canvas.addEventListener('wheel', e=>{
+  e.preventDefault();
+  const before = canvasToWorld(mouse.x, mouse.y);
+  camera.zoom = Math.min(3, Math.max(0.4, camera.zoom - e.deltaY*0.001));
+  const after = canvasToWorld(mouse.x, mouse.y);
+  camera.x += (before.x - after.x);
+  camera.y += (before.y - after.y);
+  clampCamera();
+}, {passive:false});
+
+canvas.addEventListener('touchstart', e=>{
+  e.preventDefault();
+  const t = e.touches[0];
+  const p = getMousePos(t);
+  mouse.x = p.x; mouse.y = p.y;
+  const w = canvasToWorld(mouse.x, mouse.y);
+  mouse.wx = w.x; mouse.wy = w.y;
+  touchId = t.identifier;
+  drag.active = true; drag.sx = mouse.x; drag.sy = mouse.y;
+  drag.cx = camera.x; drag.cy = camera.y;
+}, {passive:false});
+canvas.addEventListener('touchmove', e=>{
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    if(t.identifier!==touchId) continue;
+    const p = getMousePos(t);
+    mouse.x = p.x; mouse.y = p.y;
+    const w = canvasToWorld(mouse.x, mouse.y);
+    mouse.wx = w.x; mouse.wy = w.y;
+    if(drag.active){
+      camera.x = drag.cx + (drag.sx - mouse.x)/camera.zoom;
+      camera.y = drag.cy + (drag.sy - mouse.y)/camera.zoom;
+      clampCamera();
+    }
+  }
+}, {passive:false});
+canvas.addEventListener('touchend', e=>{
+  for(const t of e.changedTouches){
+    if(t.identifier!==touchId) continue;
+    if(drag.active){ drag.active = false; touchId = null; return; }
+    if(state!=='PLAYING'){ touchId = null; return; }
+    const w = canvasToWorld(mouse.x, mouse.y);
+    useToolAt(w.x, w.y);
+    touchId = null;
+  }
+}, {passive:false});
+
+window.addEventListener('keydown', e=>{
+  if(e.code==='Space'){ e.preventDefault(); togglePause(); return; }
+  if(e.code==='KeyX'){ xray = !xray; xrayBadge.style.display = xray?'block':'none'; addMsg(xray?'X-ray on':'X-ray off'); return; }
+  if(e.code==='Tab'){ e.preventDefault(); selectedCat = selectedCat==='hand'?'surgery': selectedCat==='surgery'?'medicine':'hand'; updateToolbar(); return; }
+  const t = TOOLS.find(t=>t.key && e.key===t.key);
+  if(t){ selectToolById(t.id); return; }
+});
 
 function activeBleedWounds(){ return wounds.filter(w=>!w.treated && w.type.bleed>0); }
 
