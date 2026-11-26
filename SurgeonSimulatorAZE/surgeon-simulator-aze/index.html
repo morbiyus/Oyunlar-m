@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Surgeon Simulator AZE — Play in Browser</title>
+<meta name="description" content="A Trauma Lab–style surgical trauma simulator. Manage vitals, treat wounds, and save lives. Free, no download.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="game-header">
+  <div class="header-inner">
+    <button id="backBtn" class="btn ghost" title="Back to games portal">&larr; Portal</button>
+    <div class="game-title">SURGEON SIMULATOR <span>AZE</span></div>
+    <div class="header-right" id="headerRight"></div>
+  </div>
+</header>
+
+<div class="wrap" id="wrap">
+  <!-- Start / mode screen -->
+  <div id="startScreen" class="screen active">
+    <div class="card">
+      <div class="tag">NEW CASE</div>
+      <h1>Surgeon Simulator AZE</h1>
+      <p class="lead">A patient has arrived with critical injuries. Stabilize their vitals and treat every wound before it's too late.</p>
+      <div class="mode-row">
+        <label class="mode-card">
+          <input type="radio" name="mode" value="simple" checked>
+          <div class="mode-face">Simple</div>
+          <div class="mode-desc">One click per tool treats the wound.</div>
+        </label>
+        <label class="mode-card">
+          <input type="radio" name="mode" value="complex">
+          <div class="mode-face">Complex</div>
+          <div class="mode-desc">Multi-step: scalpel &rarr; clamp &rarr; suture.</div>
+        </label>
+      </div>
+      <div class="hint">Controls: click a tool, then click the patient &bull; <kbd>X</kbd> X-ray &bull; <kbd>Space</kbd> Pause &bull; Drag / WASD pan &bull; Scroll zoom</div>
+      <button id="startBtn" class="btn big">BEGIN SURGERY</button>
+    </div>
+  </div>
+
+  <!-- In-game UI overlay -->
+  <div id="hud" class="screen">
+    <div class="monitor" id="monitor">
+      <div class="mon-row"><span class="mon-label">HR</span><span class="mon-val" id="vHR">--</span><span class="mon-unit">bpm</span></div>
+      <div class="mon-row"><span class="mon-label">BP</span><span class="mon-val" id="vBP">--</span><span class="mon-unit">/ mmHg</span></div>
+      <div class="mon-row"><span class="mon-label">SpO2</span><span class="mon-val" id="vO2">--</span><span class="mon-unit">%</span></div>
+      <div class="mon-row"><span class="mon-label">BLOOD</span><span class="mon-val" id="vBlood">--</span><span class="mon-unit">%</span></div>
+      <div class="mon-ecg" id="ecg"></div>
+    </div>
+    <div class="toolbar" id="toolbar"></div>
+    <div class="chart" id="chart"></div>
+    <div class="status" id="status">Select a tool.</div>
+    <div class="pause" id="pauseOverlay">PAUSED<br><span class="sub">Press Space to resume</span></div>
+  </div>
+
+  <!-- Game canvas -->
+  <div class="stage" id="stage">
+    <canvas id="gameCanvas"></canvas>
+    <div class="xray-badge" id="xrayBadge">X-RAY</div>
+  </div>
+
+  <!-- End screens -->
+  <div id="endScreen" class="screen hidden">
+    <div class="card">
+      <div id="endIcon" class="end-icon">?</div>
+      <h2 id="endTitle">Case Closed</h2>
+      <p id="endMsg"></p>
+      <div class="score" id="scoreBlock">
+        <div><span class="score-label">Score</span><span class="score-val" id="sScore">0</span></div>
+        <div><span class="score-label">Wounds Treated</span><span class="score-val" id="sTreated">0</span></div>
+        <div><span class="score-label">Time</span><span class="score-val" id="sTime">0s</span></div>
+      </div>
+      <div class="btn-row">
+        <button id="retryBtn" class="btn big">TRY AGAIN</button>
+        <button id="portalBtn" class="btn ghost">Back to Portal</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<canvas id="fxCanvas" class="fx"></canvas>
+<script src="game.js"></script>
+</body>
+</html>
